@@ -389,10 +389,7 @@ class PatientContactApp:
         cancelbutton.configure(font=('Times', 11, 'bold'), bg='red', fg='white')
         cancelbutton.place(x=200, y=360)
 
-
-#create class appointment
-
-class Appointment():
+class AppointmentApp():
     def __init__(self, root):
         self.root = root
         
@@ -605,9 +602,375 @@ class Appointment():
         cancelbutton.place(x=200, y=360)
 
 
-#create class appointmentType
+class AppointmentTypeApp():
+    def __init__(self, root):
+        self.root = root
+        
+        self.connect_to_database()
+        
+        self.create_gui_layout()
 
-#create class contact
+        self.populate_gui_grid()
+
+    def connect_to_database(self):
+            try:
+                self.connect = mysql.connector.connect(
+                    user='root',
+                    password='Samford99',
+                    host='localhost',
+                    database='clinic',
+                    port='3306'
+                )
+            except mysql.connector.Error as err:
+                if err.errno == errorcode.ER_ACCESS_DENIED_ERROR:
+                    print('Invalid credentials')
+                elif err.errno == errorcode.ER_BAD_DB_ERROR:
+                    print('Database not found')
+                else:
+                    print('Cannot connect to database:', err)
+
+    def create_gui_layout(self):
+        self.tree = ttk.Treeview(self.root)
+        self.tree['show'] = 'headings'
+
+        self.tree['columns'] = ('AppointmentTypeID', 'AppointmentTypeDesc')
+
+        # Create: Columns
+        self.tree.column('AppointmentTypeID', width=50, minwidth=50, anchor=tk.CENTER)
+        self.tree.column('AppointmentTypeDesc', width=100, minwidth=100, anchor=tk.W)
+
+        # Create: Headings
+        self.tree.heading('AppointmentTypeID', text='AppointmentTypeID', anchor=tk.CENTER)
+        self.tree.heading('AppointmentTypeDesc', text='AppointmentTypeDesc', anchor=tk.CENTER)
+
+        self.hsb = ttk.Scrollbar(self.root, orient='horizontal')
+        self.hsb.configure(command=self.tree.xview)
+        self.tree.configure(xscrollcommand=self.hsb.set)
+        self.hsb.pack(fill=tk.X, side=tk.BOTTOM)
+
+        self.vsb = ttk.Scrollbar(self.root, orient='vertical')
+        self.vsb.configure(command=self.tree.yview)
+        self.tree.configure(yscrollcommand=self.vsb.set)
+        self.vsb.pack(fill=tk.Y, side=tk.RIGHT)
+
+        self.tree.pack()
+
+        # Create and pack the buttons inside the frame
+        self.insert_button = tk.Button(self.root, text='Insert', command=self.add_data)
+        self.insert_button.configure(font=('calibri', 14, 'bold'), bg='green', fg='white')
+        self.insert_button.pack(side=tk.LEFT, padx=5)
+
+        self.delete_button = tk.Button(self.root, text='Delete', command=self.delete_data)
+        self.delete_button.configure(font=('calibri', 14, 'bold'), bg='red', fg='white')
+        self.delete_button.pack(side=tk.LEFT, padx=5)
+
+        self.update_button = tk.Button(self.root, text='Update', command=self.select_data)
+        self.update_button.configure(font=('calibri', 14, 'bold'), bg='blue', fg='white')
+        self.update_button.pack(side=tk.LEFT, padx=5)
+
+        # Pack the frame at the bottom of the window
+        self.root.pack(side=tk.BOTTOM, fill=tk.X, padx=5, pady=5)
+
+    def populate_gui_grid(self):
+        conn = self.connect.cursor()
+        conn.execute("select * from appointmenttype")
+
+        for i, Row in enumerate(conn):
+            self.tree.insert('', i, text="", values=(Row[0], Row[1]))
+
+    def add_data(self):
+        f = Frame(self.root, width=400, height=400, background='black')
+        f.place(x=100, y=250)
+
+        AppointmentTypeDesc = StringVar()
+        AppointmentID = StringVar()
+
+        l1 = Label(f, text='AppointmentID', width=8, font=('Times', 11, 'bold'))
+        e1 = Entry(f, textvariable=AppointmentID, width=25)
+        l1.place(x=50, y=30)
+        e1.place(x=170, y=30)
+
+        l2 = Label(f, text='AppointmentTypeDesc', width=8, font=('Times', 11, 'bold'))
+        e2 = Entry(f, textvariable=AppointmentTypeDesc, width=25)
+        l2.place(x=50, y=70)
+        e2.place(x=170, y=70)
+
+        def insert_data():
+            a_appointmentID = AppointmentTypeDesc.get()
+            a_appointmentTypeDesc = AppointmentID.get()
+
+            conn = self.connect.cursor()
+            conn.execute('INSERT INTO Appointmenttype(AppointmentID, AppointmentID) VALUES(%s,%s)',
+                         (a_appointmentID, a_appointmentTypeDesc))
+            self.connect.commit()
+            self.tree.insert('', 'end', text="", values=(a_appointmentID, a_appointmentTypeDesc))
+            messagebox.showinfo("Success", "Appointment type Created")
+            e1.delete(0, END)
+            e2.delete(0, END)
+
+            f.destroy()
+
+        submitbutton = tk.Button(f, text="submit", command=insert_data)
+        submitbutton.configure(font=('Times', 11, 'bold'), bg='green', fg='white')
+        submitbutton.place(x=100, y=360)
+        cancelbutton = tk.Button(f, text="cancel", command=f.destroy)
+        cancelbutton.configure(font=('Times', 11, 'bold'), bg='red', fg='white')
+        cancelbutton.place(x=240, y=360)
+
+    def delete_data(self):
+        selected_item = self.tree.selection()[0]
+        uid = self.tree.item(selected_item)['values'][0]
+        del_query = 'DELETE from appointmenttype where AppointmentID = %s'
+        sel_data = (uid,)
+        conn = self.connect.cursor()
+        conn.execute(del_query, sel_data)
+        self.connect.commit()
+        self.tree.delete(selected_item)
+        messagebox.showinfo("SUCCESS", 'Appointment type data deleted')
+
+    def select_data(self):
+        curItem = self.tree.focus()
+        values = self.tree.item(curItem, 'values')
+
+        f = Frame(self.root, width=400, height=400, background='grey')
+        f.place(x=100, y=250)
+
+        AppointmentID = StringVar()
+        AppointmentTypeDesc = StringVar()
+
+        l1 = Label(f, text='AppointmentID', width=8, font=('Times', 11, 'bold'))
+        e1 = Entry(f, textvariable=AppointmentID, width=25)
+        l1.place(x=50, y=30)
+        e1.place(x=170, y=30)
+
+        l2 = Label(f, text='AppointmentTypeDesc', width=8, font=('Times', 11, 'bold'))
+        e2 = Entry(f, textvariable=AppointmentTypeDesc, width=25)
+        l2.place(x=50, y=70)
+        e2.place(x=170, y=70)
+
+        e1.insert(0, values[0])
+        e2.insert(0, values[1])
+
+        def update_data():
+            a_appointmentID = AppointmentID.get()
+            a_appointmenttypeDesc = AppointmentTypeDesc.get()
+
+            self.tree.item(curItem, values=(values[0], a_appointmentID, a_appointmenttypeDesc))
+
+            conn = self.connect.cursor()
+            conn.execute(
+                'UPDATE appointmenttype SET appointmentID=%s, appointmenttypedesc=%s WHERE appointmentID=%s',
+                (a_appointmentID, a_appointmenttypeDesc, values[0]))
+
+            self.connect.commit()
+            messagebox.showinfo('SUCCESS', 'AppointmentID data updated')
+            e1.delete(0, END)
+            e2.delete(0, END)
+
+            f.destroy()
+
+        savebutton = tk.Button(f, text="submit", command=update_data)
+        savebutton.configure(font=('Times', 11, 'bold'), bg='green', fg='white')
+        savebutton.place(x=100, y=360)
+        cancelbutton = tk.Button(f, text="cancel", command=f.destroy)
+        cancelbutton.configure(font=('Times', 11, 'bold'), bg='red', fg='white')
+        cancelbutton.place(x=200, y=360)
+
+
+
+class ContactIDApp():
+    def __init__(self, root):
+        self.root = root
+        
+        self.connect_to_database()
+        
+        self.create_gui_layout()
+
+        self.populate_gui_grid()
+
+    def connect_to_database(self):
+            try:
+                self.connect = mysql.connector.connect(
+                    user='root',
+                    password='Samford99',
+                    host='localhost',
+                    database='clinic',
+                    port='3306'
+                )
+            except mysql.connector.Error as err:
+                if err.errno == errorcode.ER_ACCESS_DENIED_ERROR:
+                    print('Invalid credentials')
+                elif err.errno == errorcode.ER_BAD_DB_ERROR:
+                    print('Database not found')
+                else:
+                    print('Cannot connect to database:', err)
+
+    def create_gui_layout(self):
+        self.tree = ttk.Treeview(self.root)
+        self.tree['show'] = 'headings'
+
+        self.tree['columns'] = ('ContactID', 'PhoneNumber', 'Email')
+
+        # Create: Columns
+        self.tree.column('ContactID', width=50, minwidth=50, anchor=tk.CENTER)
+        self.tree.column('PhoneNumber', width=100, minwidth=100, anchor=tk.W)
+        self.tree.column('Email', width=100, minwidth=100, anchor=tk.W)
+
+        # Create: Headings
+        self.tree.heading('ContactID', text='ContactID', anchor=tk.CENTER)
+        self.tree.heading('PhoneNumber', text='PhoneNumber', anchor=tk.CENTER)
+        self.tree.heading('Email', text='Email', anchor=tk.CENTER)
+
+        self.hsb = ttk.Scrollbar(self.root, orient='horizontal')
+        self.hsb.configure(command=self.tree.xview)
+        self.tree.configure(xscrollcommand=self.hsb.set)
+        self.hsb.pack(fill=tk.X, side=tk.BOTTOM)
+
+        self.vsb = ttk.Scrollbar(self.root, orient='vertical')
+        self.vsb.configure(command=self.tree.yview)
+        self.tree.configure(yscrollcommand=self.vsb.set)
+        self.vsb.pack(fill=tk.Y, side=tk.RIGHT)
+
+        self.tree.pack()
+
+        # Create and pack the buttons inside the frame
+        self.insert_button = tk.Button(self.root, text='Insert', command=self.add_data)
+        self.insert_button.configure(font=('calibri', 14, 'bold'), bg='green', fg='white')
+        self.insert_button.pack(side=tk.LEFT, padx=5)
+
+        self.delete_button = tk.Button(self.root, text='Delete', command=self.delete_data)
+        self.delete_button.configure(font=('calibri', 14, 'bold'), bg='red', fg='white')
+        self.delete_button.pack(side=tk.LEFT, padx=5)
+
+        self.update_button = tk.Button(self.root, text='Update', command=self.select_data)
+        self.update_button.configure(font=('calibri', 14, 'bold'), bg='blue', fg='white')
+        self.update_button.pack(side=tk.LEFT, padx=5)
+
+        # Pack the frame at the bottom of the window
+        self.root.pack(side=tk.BOTTOM, fill=tk.X, padx=5, pady=5)
+
+    def populate_gui_grid(self):
+        conn = self.connect.cursor()
+        conn.execute("select * from Contact")
+
+        for i, Row in enumerate(conn):
+            self.tree.insert('', i, text="", values=(Row[0], Row[1], Row[2]))
+
+    def add_data(self):
+        f = Frame(self.root, width=400, height=400, background='grey')
+        f.place(x=100, y=250)
+
+        ContactID = StringVar()
+        PhoneNumber = StringVar()
+        Email = StringVar()
+
+        l1 = Label(f, text='ContactID', width=8, font=('Times', 11, 'bold'))
+        e1 = Entry(f, textvariable=ContactID, width=25)
+        l1.place(x=50, y=30)
+        e1.place(x=170, y=30)
+
+        l2 = Label(f, text='PhoneNumber', width=8, font=('Times', 11, 'bold'))
+        e2 = Entry(f, textvariable=PhoneNumber, width=25)
+        l2.place(x=50, y=70)
+        e2.place(x=170, y=70)
+
+        l3 = Label(f, text='Email', width=8, font=('Times', 11, 'bold'))
+        e3 = Entry(f, textvariable=Email, width=25)
+        l3.place(x=50, y=110)
+        e3.place(x=170, y=110)
+
+        def insert_data():
+            a_ContactID = ContactID.get()
+            a_PhoneNumber = PhoneNumber.get()
+            a_Email = Email.get()
+
+            conn = self.connect.cursor()
+            conn.execute('INSERT INTO Contact(ContactID, PhoneNumber, Email) VALUES(%s,%s,%s)',
+                         (a_ContactID, a_PhoneNumber, a_Email))
+            self.connect.commit()
+            self.tree.insert('', 'end', text="", values=(a_ContactID, a_PhoneNumber, a_Email))
+            messagebox.showinfo("Success", "ContactID Created")
+            e1.delete(0, END)
+            e2.delete(0, END)
+            e3.delete(0, END)
+
+            f.destroy()
+
+        submitbutton = tk.Button(f, text="submit", command=insert_data)
+        submitbutton.configure(font=('Times', 11, 'bold'), bg='green', fg='white')
+        submitbutton.place(x=100, y=360)
+        cancelbutton = tk.Button(f, text="cancel", command=f.destroy)
+        cancelbutton.configure(font=('Times', 11, 'bold'), bg='red', fg='white')
+        cancelbutton.place(x=240, y=360)
+
+    def delete_data(self):
+        selected_item = self.tree.selection()[0]
+        uid = self.tree.item(selected_item)['values'][0]
+        del_query = 'DELETE from Contact where ContactID = %s'
+        sel_data = (uid,)
+        conn = self.connect.cursor()
+        conn.execute(del_query, sel_data)
+        self.connect.commit()
+        self.tree.delete(selected_item)
+        messagebox.showinfo("SUCCESS", 'ContactID data deleted')
+
+    def select_data(self):
+        curItem = self.tree.focus()
+        values = self.tree.item(curItem, 'values')
+
+        f = Frame(self.root, width=400, height=400, background='grey')
+        f.place(x=100, y=250)
+
+        ContactID = StringVar()
+        PhoneNumber = StringVar()
+        Email = StringVar()
+
+        l1 = Label(f, text='ContactID', width=8, font=('Times', 11, 'bold'))
+        e1 = Entry(f, textvariable=ContactID, width=25)
+        l1.place(x=50, y=30)
+        e1.place(x=170, y=30)
+
+        l2 = Label(f, text='PhoneNumber', width=8, font=('Times', 11, 'bold'))
+        e2 = Entry(f, textvariable=PhoneNumber, width=25)
+        l2.place(x=50, y=70)
+        e2.place(x=170, y=70)
+
+        l3 = Label(f, text='Email', width=8, font=('Times', 11, 'bold'))
+        e3 = Entry(f, textvariable=Email, width=25)
+        l3.place(x=50, y=110)
+        e3.place(x=170, y=110)
+
+        e1.insert(0, values[0])
+        e2.insert(0, values[1])
+        e3.insert(0, values[2])
+
+        def update_data():
+            a_ContactID = ContactID.get()
+            a_PhoneNumber = PhoneNumber.get()
+            a_Email = Email.get()
+
+            self.tree.item(curItem, values=(values[0], a_ContactID, a_PhoneNumber, a_Email))
+
+            conn = self.connect.cursor()
+            conn.execute(
+                'UPDATE Contact SET ContactID=%s, PhoneNumber=%s, Email=%s WHERE ContactID=%s',
+                (a_ContactID, a_PhoneNumber, a_Email, values[0]))
+
+            self.connect.commit()
+            messagebox.showinfo('SUCCESS', 'ContactID data updated')
+            e1.delete(0, END)
+            e2.delete(0, END)
+            e3.delete(0, END)
+
+            f.destroy()
+
+        savebutton = tk.Button(f, text="submit", command=update_data)
+        savebutton.configure(font=('Times', 11, 'bold'), bg='green', fg='white')
+        savebutton.place(x=100, y=360)
+        cancelbutton = tk.Button(f, text="cancel", command=f.destroy)
+        cancelbutton.configure(font=('Times', 11, 'bold'), bg='red', fg='white')
+        cancelbutton.place(x=200, y=360)    
+    
 
 #create employee
 
@@ -636,9 +999,20 @@ if __name__ == "__main__":
     patient_contact_app = PatientContactApp(patient_contact_frame)
     notebook.add(patient_contact_frame, text="Patient Contact Details")
 
+    # Create instance of AppointmentApp
     appointment_frame = tk.Frame(notebook)
-    appointment_app = Appointment(appointment_frame)
-    notebook.add(appointment_frame, text = "Appointment")
+    appointment_app = AppointmentApp(appointment_frame)
+    notebook.add(appointment_frame, text = "Appointment Details")
+
+    # Create instance of AppointmentType
+    appointment_type_frame = tk.Frame(notebook)
+    appointment_type_app = AppointmentTypeApp(appointment_type_frame)
+    notebook.add(appointment_type_frame, text = "AppointmentType Details")
+
+    # Create instance of ContactIDApp
+    contactID_frame = tk.Frame(notebook)
+    contactID_app = ContactIDApp(contactID_frame)
+    notebook.add(contactID_frame, text = "ContactID Details")
 
     notebook.pack(expand=True, fill="both")
 
